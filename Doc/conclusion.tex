@@ -1,0 +1,88 @@
+%Set the document class and font size
+\documentclass[fleqn, bachelor,subf,12pt,notitlepage]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{mathtools} 
+\usepackage{amssymb}
+\usepackage{systeme}
+\usepackage[english]{babel}
+\usepackage{xparse}
+\usepackage{xfrac}
+\usepackage{setspace}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{bigints}
+\usepackage{fontspec}
+\usepackage{chngcntr}
+\usepackage{caption}
+
+%This package allows to modify enumerations
+\usepackage{enumitem}
+
+
+%This package allows to change figure insertion mode (H, etc.)
+\usepackage{float}
+
+%This package is used for big sum symbol
+\usepackage{relsize}
+
+\usepackage
+[
+ 	a4paper,
+ 	left=30mm,
+	right = 10mm,
+ 	top=20mm,
+	bottom=25mm
+ ]
+{geometry}
+
+%This command sets the font
+\setmainfont{Sylfaen}
+
+%These commands change line spacing
+%\onehalfspacing
+\linespread{1.5}
+
+\title{Դիպլոմային աշխատանք}
+\author{Կամո Սևոյան}
+
+%This command allows to change page counter.
+\setcounter{page}{93}
+
+\begin{document}
+
+\newpage
+\section*{\centering {\addfontfeatures{FakeBold=2.0}Եզրակացություն}}
+\sloppy
+
+\hspace{\parindent}Այսպիսով, ավարտական աշխատանքում քննարկվել են մինչև երեք փոփոխականի ֆունկցիաների մոտարկման եղանակները, ավելի կոնկրետ՝ Լագրանժի և էրմիթյան մոտարկման եղանակները, հատկապես ուշադրություն դարձնելով երկու փոփոխականի ֆունկցիաներին։ Կառուցված մոտարկման բանաձևերի օգնությամբ իրականացվել են մասնակի ածանցյալներով դիֆերենցիալ հավասարումների մոտավոր լուծումներ վարիացիոն մեթոդով։ Իրականացման տեսանկյունից հատկապես բարդ է Արգիրիսի բազիսային ֆունկցիաները, քանի որ դեպի ստանդարտ էլեմենտ և հակադարձ ձևափոխությունները բավականին բարդ են (Պիոլայի ձևափոխություն) ի համեմատ մյուս բազիսային էլեմենտների։ 
+
+Հաշվարկներն իրականացնելու համար օգտագործվել է Python ծրագրավորման լեզուն Jupyter Lab միջավայրում, որը թույլ է տալիս կոդի ինտերակտիվ կատարում։ Սիմվոլիկ հաշվարկները հեշտացնելու նպատակով օգտագործվել է Sympy գրադարանը, որը թույլ է տալիս իրականացնել սիմվոլիկ դիֆերենցում և ինտեգրում։ Եռանկյունացում կատարելու համար օգտագործվել է Triangle գրադարանը։ Թվային հաշվարկներ կատարելու համար օգտագործվել է Numpy գրադարանը, որը հարմար է բազմաչափ զանգվածների հետ տարատեսակ գործողություններ կատարելու համար։
+
+Որպես ամփոփում, աշխատանքի հետագա շարունակության համար կարելի է դիտարկել վեկտորական և մատրիցային ֆունկցիաների մոտարկման խնդիրը։
+
+
+
+\newpage
+\section*{\centering {\addfontfeatures{FakeBold=2.0}Գրականության ցանկ}}
+
+%\setlist[enumerate]{itemindent=\dimexpr\labelwidth+\labelsep\relax,leftmargin=0pt}
+\begin{enumerate}[leftmargin=0.5cm]
+\item {\addfontfeatures{FakeBold=2.0}A. R. Mitchell}, The finite element method in partial differential equations, London, Wiley, 1977.
+\item {{\addfontfeatures{FakeBold=2.0}R. Courant and D. Hilbert},} Methods of mathematical physics, Berlin, Verlag von Julius Springer, 1924.
+\item{\addfontfeatures{FakeBold=2.0}Robert C. Kirby}, A general approach to transforming finite elements, Amsterdam, Elsevier, 2018.
+\item{\addfontfeatures{FakeBold=2.0}Р.З. Даутов, М.М. Карчевский}, Введение в теорию метода конечных элементов, Казань, Казанский государственный университет
+им. В.И. Ульянова–Ленина, 2004.
+\item{\addfontfeatures{FakeBold=2.0}А.Н.Тихонов, А.А.Самарский}, Уравнения математической физики, Государственное издательство технико-теоретической литературы, Москва 1951.
+\item{\addfontfeatures{FakeBold=2.0}JupyterLab: A Next-Generation Notebook Interface}, https://jupyter.org.
+\item{\addfontfeatures{FakeBold=2.0}Numeric Python}, https://numpy.org.
+\item{\addfontfeatures{FakeBold=2.0}Symbolic Python}, https://sympy.org.
+\item{\addfontfeatures{FakeBold=2.0}A Two-Dimensional Quality Mesh Generator and Delaunay Triangulator}, http://cs.cmu.edu.
+\item{\addfontfeatures{FakeBold=2.0}An encyclopedia of finite element definitions}, https://defelement.com.
+\item{\addfontfeatures{FakeBold=2.0}Խալաթյան Ռ.Պ., Սարգսյան Ս.Հ}, Կենսագործունեության անվտանգություն։
+
+\end{enumerate}
+
+\end{document}

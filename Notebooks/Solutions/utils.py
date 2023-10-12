@@ -1,25 +1,25 @@
 import dill
 import numpy as np
 
-def get_p3_from_p1(triangles, 
-                   edges, 
-                   points, 
-                   vertex_marker_is_boundary,
-                   edge_marker_is_boundary):
 
+def get_p3_from_p1(
+    triangles, edges, points, vertex_marker_is_boundary, edge_marker_is_boundary
+):
     def get_local_edges(points, triangle, sorted_edges):
         result = []
 
         for pair in triangle[np.array([[1, 2], [0, 2], [0, 1]])]:
             pairs_sorted_idx = np.argsort(pair)
-            idx = np.where(np.all(pair[pairs_sorted_idx] == sorted_edges, axis=-1))[0][0]
+            idx = np.where(np.all(pair[pairs_sorted_idx] == sorted_edges, axis=-1))[0][
+                0
+            ]
             result.append(idx)
 
         return result
-    
+
     extended_triangles = np.zeros((triangles.shape[0], 10), dtype=int)
     triangle_to_edge = np.zeros_like(triangles)
-    
+
     edges_sorted_idx = np.argsort(edges, axis=-1)
     sorted_edges = np.take_along_axis(edges, edges_sorted_idx, axis=-1)
 
@@ -36,20 +36,24 @@ def get_p3_from_p1(triangles,
     extended_vmisb = vertex_marker_is_boundary.copy()
 
     for eidx, edge in enumerate(edges):
-        m1 = extended_points[edge[0]] + (-extended_points[edge[0]] + extended_points[edge[1]]) * 1 / 3
-        m2 = extended_points[edge[0]] + (-extended_points[edge[0]] + extended_points[edge[1]]) * 2 / 3
+        m1 = (
+            extended_points[edge[0]]
+            + (-extended_points[edge[0]] + extended_points[edge[1]]) * 1 / 3
+        )
+        m2 = (
+            extended_points[edge[0]]
+            + (-extended_points[edge[0]] + extended_points[edge[1]]) * 2 / 3
+        )
 
         extended_points = np.concatenate([extended_points, [m1, m2]])
-        trisection_points.append(np.array([num_nodes + 2 * eidx, num_nodes + 2 * eidx + 1]))
+        trisection_points.append(
+            np.array([num_nodes + 2 * eidx, num_nodes + 2 * eidx + 1])
+        )
 
         if edge_marker_is_boundary[eidx] == 1:
-            extended_vmisb = np.concatenate(
-                [extended_vmisb, [[1], [1]]]
-            )
+            extended_vmisb = np.concatenate([extended_vmisb, [[1], [1]]])
         else:
-            extended_vmisb = np.concatenate(
-                [extended_vmisb, [[0], [0]]]
-            )
+            extended_vmisb = np.concatenate([extended_vmisb, [[0], [0]]])
 
     trisection_points = np.stack(trisection_points)
 
@@ -82,10 +86,12 @@ def get_p3_from_p1(triangles,
 
     return extended_points, extended_triangles, extended_vmisb
 
+
 def orient_batch(arg):
     indices = np.argsort(arg, axis=-1)
     oriented = np.take_along_axis(arg, indices, axis=-1)
     return oriented
+
 
 def get_middle_indices(num_points, triangles):
     is_middle = np.zeros(num_points, dtype=np.bool_)
@@ -93,6 +99,7 @@ def get_middle_indices(num_points, triangles):
         is_middle[elem[3:]] = True
 
     return is_middle
+
 
 def fill_stiffness_matrix(
     matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary, num_nodes
@@ -172,13 +179,15 @@ def fill_stiffness_matrix(
                 2 * right_part[18 + (mid_idx - 3)]
             )
 
-def get_delta_approximation_argyris_biharmonic(origin, 
-                                               points,
-                                               triangles,
-                                               num_nodes,
-                                               total_points):
+
+def get_delta_approximation_argyris_biharmonic(
+    origin, points, triangles, num_nodes, total_points
+):
     integral_values = dill.load(
-        open("../calculations/argyris_quintic_biharmonic_matrix_integral_values_simplified", "rb")
+        open(
+            "../calculations/argyris_quintic_biharmonic_matrix_integral_values_simplified",
+            "rb",
+        )
     )
     near_point = ((points[:num_nodes] - origin) ** 2).sum(axis=-1).argmin()
     base_triangles = np.where(near_point == triangles)
@@ -186,25 +195,28 @@ def get_delta_approximation_argyris_biharmonic(origin,
     pts = points[triangles[base_triangles[0], :3]]
 
     all_volumes = integral_values(
-    pts[:, 0, 0], pts[:, 0, 1],
-    pts[:, 1, 0], pts[:, 1, 1],
-    pts[:, 2, 0], pts[:, 2, 1]
+        pts[:, 0, 0],
+        pts[:, 0, 1],
+        pts[:, 1, 0],
+        pts[:, 1, 1],
+        pts[:, 2, 0],
+        pts[:, 2, 1],
     )[:, 0].T
 
-    total_volume = all_volumes[np.arange(pts.shape[0]), 6*base_triangles[1]].sum()
+    total_volume = all_volumes[np.arange(pts.shape[0]), 6 * base_triangles[1]].sum()
 
     right_part_values = np.zeros((total_points, 6))
     right_part_values[near_point][0] = 1 / total_volume
 
     return right_part_values
 
-def get_delta_approximation_bell_biharmonic(origin, 
-                                points,
-                                triangles,
-                                total_points):
-    
+
+def get_delta_approximation_bell_biharmonic(origin, points, triangles, total_points):
     integral_values = dill.load(
-        open("../calculations/bell_quintic_biharmonic_matrix_integral_values_simplified", "rb")
+        open(
+            "../calculations/bell_quintic_biharmonic_matrix_integral_values_simplified",
+            "rb",
+        )
     )
     near_point = ((points - origin) ** 2).sum(axis=-1).argmin()
     base_triangles = np.where(near_point == triangles)
@@ -212,12 +224,15 @@ def get_delta_approximation_bell_biharmonic(origin,
     pts = points[triangles[base_triangles[0]]]
 
     all_volumes = integral_values(
-    pts[:, 0, 0], pts[:, 0, 1],
-    pts[:, 1, 0], pts[:, 1, 1],
-    pts[:, 2, 0], pts[:, 2, 1]
+        pts[:, 0, 0],
+        pts[:, 0, 1],
+        pts[:, 1, 0],
+        pts[:, 1, 1],
+        pts[:, 2, 0],
+        pts[:, 2, 1],
     )[:, 0].T
 
-    total_volume = all_volumes[np.arange(pts.shape[0]), 6*base_triangles[1]].sum()
+    total_volume = all_volumes[np.arange(pts.shape[0]), 6 * base_triangles[1]].sum()
 
     right_part_values = np.zeros((total_points, 6))
     right_part_values[near_point][0] = 1 / total_volume
@@ -226,8 +241,7 @@ def get_delta_approximation_bell_biharmonic(origin,
 
 
 def fill_stiffness_matrix_bell_preconditioned(
-    matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary,
-    cond
+    matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary, cond
 ):
     for point_idx in range(3):
         if vertex_marker_is_boundary[element[point_idx]] == True:
@@ -251,8 +265,8 @@ def fill_stiffness_matrix_bell_preconditioned(
                         p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
                         p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
 
-                        value /= cond[element[point_idx]]**p1
-                        value /= cond[element[j]]**p2
+                        value /= cond[element[point_idx]] ** p1
+                        value /= cond[element[j]] ** p2
 
                         matrix[I, J] += value
 
@@ -260,7 +274,7 @@ def fill_stiffness_matrix_bell_preconditioned(
                 value = 2 * right_part[6 * point_idx + i]
 
                 p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
-                value /= cond[element[point_idx]]**p1
+                value /= cond[element[point_idx]] ** p1
 
                 b[6 * element[point_idx] + i] += value
 
@@ -276,8 +290,8 @@ def fill_stiffness_matrix_bell_preconditioned(
                         p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
                         p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
 
-                        value /= cond[element[point_idx]]**p1
-                        value /= cond[element[j]]**p2
+                        value /= cond[element[point_idx]] ** p1
+                        value /= cond[element[j]] ** p2
 
                         matrix[I, J] += value
 
@@ -285,12 +299,12 @@ def fill_stiffness_matrix_bell_preconditioned(
                 value = 2 * right_part[6 * point_idx + i]
 
                 p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
-                value /= cond[element[point_idx]]**p1
-                
+                value /= cond[element[point_idx]] ** p1
+
                 b[6 * element[point_idx] + i] += value
 
-def get_precondition_terms(points, triangles):
 
+def get_precondition_terms(points, triangles):
     tmp = points[triangles]
     v1 = tmp[:, 1] - tmp[:, 0]
     v2 = tmp[:, 2] - tmp[:, 0]
@@ -298,9 +312,11 @@ def get_precondition_terms(points, triangles):
 
     # get areas
     areas = np.abs(v1[:, 0] * v2[:, 1] - v1[:, 1] * v2[:, 0]) / 2
-    P = (v1**2).sum(axis=-1)**0.5 + \
-        (v2**2).sum(axis=-1)**0.5 + \
-        (v3**2).sum(axis=-1)**0.5
+    P = (
+        (v1**2).sum(axis=-1) ** 0.5
+        + (v2**2).sum(axis=-1) ** 0.5
+        + (v3**2).sum(axis=-1) ** 0.5
+    )
 
     points_indices = np.arange(points.shape[0])
 
@@ -314,7 +330,6 @@ def get_precondition_terms(points, triangles):
     cond = np.zeros(points.shape[0])
 
     for p_index in points_indices:
-
         w = 2 * areas[map_triangle[map_vertex == p_index]]
         w = w / P[map_triangle[map_vertex == p_index]]
         w = w.mean()

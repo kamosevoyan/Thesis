@@ -302,9 +302,61 @@ def get_delta_function(
 
         node_f_dof_idx = 6 * np.where(orient(element) == near_point)[0]
 
-    area += integral_values(*args)[node_f_dof_idx]
+        area += integral_values(*args)[node_f_dof_idx]
 
     right_part_values = np.zeros((points.shape[0], 6))
     right_part_values[near_point][0] = 1 / area
+
+    return right_part_values
+
+def get_delta_approximation_argyris_biharmonic(origin, 
+                                               points,
+                                               triangles,
+                                               num_nodes,
+                                               total_points):
+    integral_values = dill.load(
+        open("../calculations/argyris_quintic_biharmonic_matrix_integral_values_simplified", "rb")
+    )
+    near_point = ((points[:num_nodes] - origin) ** 2).sum(axis=-1).argmin()
+    base_triangles = np.where(near_point == triangles)
+
+    pts = points[triangles[base_triangles[0], :3]]
+
+    all_volumes = integral_values(
+    pts[:, 0, 0], pts[:, 0, 1],
+    pts[:, 1, 0], pts[:, 1, 1],
+    pts[:, 2, 0], pts[:, 2, 1]
+    )[:, 0].T
+
+    total_volume = all_volumes[np.arange(pts.shape[0]), 6*base_triangles[1]].sum()
+
+    right_part_values = np.zeros((total_points, 6))
+    right_part_values[near_point][0] = 1 / total_volume
+
+    return right_part_values
+
+def get_delta_approximation_bell(origin, 
+                                points,
+                                triangles,
+                                total_points):
+    
+    integral_values = dill.load(
+        open("../calculations/bell_quintic_biharmonic_matrix_integral_values_simplified", "rb")
+    )
+    near_point = ((points - origin) ** 2).sum(axis=-1).argmin()
+    base_triangles = np.where(near_point == triangles)
+
+    pts = points[triangles[base_triangles[0]]]
+
+    all_volumes = integral_values(
+    pts[:, 0, 0], pts[:, 0, 1],
+    pts[:, 1, 0], pts[:, 1, 1],
+    pts[:, 2, 0], pts[:, 2, 1]
+    )[:, 0].T
+
+    total_volume = all_volumes[np.arange(pts.shape[0]), 6*base_triangles[1]].sum()
+
+    right_part_values = np.zeros((total_points, 6))
+    right_part_values[near_point][0] = 1 / total_volume
 
     return right_part_values

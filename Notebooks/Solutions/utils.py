@@ -1,31 +1,91 @@
 import dill
 import numpy as np
 
-rot = np.array([[+0, +1], [-1, +0]])
+def get_p3_from_p1(triangles, 
+                   edges, 
+                   points, 
+                   vertex_marker_is_boundary,
+                   edge_marker_is_boundary):
 
-G1_hat = np.array(
-    [
-        [-np.sqrt(1 / 2), -np.sqrt(1 / 2)],
-        [-np.sqrt(1 / 2), +np.sqrt(1 / 2)],
-    ]
-)
+    def get_local_edges(points, triangle, sorted_edges):
+        result = []
 
-G2_hat = np.array(
-    [
-        [-1, +0],
-        [+0, +1],
-    ]
-)
+        for pair in triangle[np.array([[1, 2], [0, 2], [0, 1]])]:
+            pairs_sorted_idx = np.argsort(pair)
+            idx = np.where(np.all(pair[pairs_sorted_idx] == sorted_edges, axis=-1))[0][0]
+            result.append(idx)
 
-G3_hat = np.array([[+0, +1], [+1, +0]])
+        return result
+    
+    extended_triangles = np.zeros((triangles.shape[0], 10), dtype=int)
+    triangle_to_edge = np.zeros_like(triangles)
+    
+    edges_sorted_idx = np.argsort(edges, axis=-1)
+    sorted_edges = np.take_along_axis(edges, edges_sorted_idx, axis=-1)
 
+    # associate edges with triangles
+    for tidx, triangle in enumerate(triangles):
+        result = get_local_edges(points, triangle, sorted_edges)
+        triangle_to_edge[tidx] = result
 
-def orient(arg):
-    indices = np.argsort(arg[:3])
-    oriented = np.concatenate([arg[:3][indices], arg[3:][indices]])
+    num_nodes = points.shape[0]
 
+    trisection_points = []
+
+    extended_points = points.copy()
+    extended_vmisb = vertex_marker_is_boundary.copy()
+
+    for eidx, edge in enumerate(edges):
+        m1 = extended_points[edge[0]] + (-extended_points[edge[0]] + extended_points[edge[1]]) * 1 / 3
+        m2 = extended_points[edge[0]] + (-extended_points[edge[0]] + extended_points[edge[1]]) * 2 / 3
+
+        extended_points = np.concatenate([extended_points, [m1, m2]])
+        trisection_points.append(np.array([num_nodes + 2 * eidx, num_nodes + 2 * eidx + 1]))
+
+        if edge_marker_is_boundary[eidx] == 1:
+            extended_vmisb = np.concatenate(
+                [extended_vmisb, [[1], [1]]]
+            )
+        else:
+            extended_vmisb = np.concatenate(
+                [extended_vmisb, [[0], [0]]]
+            )
+
+    trisection_points = np.stack(trisection_points)
+
+    for tidx, triangle in enumerate(triangles):
+        extended_triangles[tidx][:3] = triangle
+
+        res = []
+
+        # add add trisection points to the new triangles
+        for global_edge, local_edge in zip(
+            triangle_to_edge[tidx], triangle[np.array([[1, 2], [0, 2], [0, 1]])]
+        ):
+            what = trisection_points[global_edge]
+            # check the case when the directions do not match
+            if not np.all(edges[global_edge] == local_edge):
+                what = what[::-1]
+
+            res.extend(what.tolist())
+
+        extended_triangles[tidx][3:-1] = res
+
+    num_nodes = extended_points.shape[0]
+
+    # add middle point
+    for tidx, triangle in enumerate(extended_triangles):
+        mid_point = extended_points[triangle[:3]].mean(axis=0)
+        extended_points = np.concatenate([extended_points, [mid_point]])
+        triangle[-1] = num_nodes + tidx
+        extended_vmisb = np.concatenate([extended_vmisb, [[0]]])
+
+    return extended_points, extended_triangles, extended_vmisb
+
+def orient_batch(arg):
+    indices = np.argsort(arg, axis=-1)
+    oriented = np.take_along_axis(arg, indices, axis=-1)
     return oriented
-
 
 def get_middle_indices(num_points, triangles):
     is_middle = np.zeros(num_points, dtype=np.bool_)
@@ -33,100 +93,6 @@ def get_middle_indices(num_points, triangles):
         is_middle[elem[3:]] = True
 
     return is_middle
-
-
-def combine_arguments(points, element, right_part_values):
-    local_triangle = points[element]
-
-    # ----------------P's----------------------------------------------------------------
-    x1, x2, x3 = points[element[0], 0], points[element[1], 0], points[element[2], 0]
-    y1, y2, y3 = points[element[0], 1], points[element[1], 1], points[element[2], 1]
-
-    delta = x1 * y2 - x1 * y3 - x2 * y1 + x2 * y3 + x3 * y1 - x3 * y2
-
-    P_1_x = (-y1 + y3) / delta
-    P_1_y = (+x1 - x3) / delta
-
-    P_2_x = (+y1 - y2) / delta
-    P_2_y = (-x1 + x2) / delta
-    # ------------------------------------------------------------------------------------
-
-    # ----------------------Lengths-------------------------------------------------------
-    l1 = ((x2 - x3) ** 2 + (y2 - y3) ** 2) ** 0.5
-    l2 = ((x1 - x3) ** 2 + (y1 - y3) ** 2) ** 0.5
-    l3 = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-    # ------------------------------------------------------------------------------------
-
-    # ----------------------Jacobian------------------------------------------------------
-    J = np.array([[P_1_x, P_1_y], [P_2_x, P_2_y]])
-    J_inv_T = np.linalg.inv(J).T
-    # -----------------------------------------------------------------------------------
-
-    # -----------------------nomal-and-tangential-vectors--------------------------------
-    t1 = local_triangle[2] - local_triangle[1]
-    t1 = t1 / np.linalg.norm(t1)
-    n1 = rot @ t1
-
-    t2 = local_triangle[2] - local_triangle[0]
-    t2 = t2 / np.linalg.norm(t2)
-    n2 = rot @ t2
-
-    t3 = local_triangle[1] - local_triangle[0]
-    t3 = t3 / np.linalg.norm(t3)
-    n3 = rot @ t3
-    # ------------------------------------------------------------------------------------
-
-    # ------------------------G's---------------------------------------------------------
-    G1 = np.array([[*n1], [*t1]])
-    G2 = np.array([[*n2], [*t2]])
-    G3 = np.array([[*n3], [*t3]])
-    B1 = G1_hat @ J_inv_T @ G1.T
-    B2 = G2_hat @ J_inv_T @ G2.T
-    B3 = G3_hat @ J_inv_T @ G3.T
-    # ------------------------------------------------------------------------------------
-
-    # ----------------------Theta---------------------------------------------------------
-    THETA = np.array(
-        [
-            [P_1_x**2, 2 * P_1_x * P_2_x, P_2_x**2],
-            [P_1_y * P_1_x, P_1_y * P_2_x + P_1_x * P_2_y, P_2_x * P_2_y],
-            [P_1_y**2, 2 * P_1_y * P_2_y, P_2_y**2],
-        ]
-    )
-    # ------------------------------------------------------------------------------------
-
-    # -------------------------right-part-interp------------------------------------------
-    right_part_interp = [
-        *right_part_values[element[0]],
-        *right_part_values[element[1]],
-        *right_part_values[element[2]],
-        n1 @ right_part_values[element[3]][1:3],
-        n2 @ right_part_values[element[4]][1:3],
-        n3 @ right_part_values[element[5]][1:3],
-    ]
-    # ------------------------------------------------------------------------------------
-
-    # --------------------args------------------------------------------------------------
-    args = [
-        *n1,
-        *n2,
-        *n3,
-        *t1,
-        *t2,
-        *t3,
-        l1,
-        l2,
-        l3,
-        *J.flatten(),
-        *THETA.flatten(),
-        *B1.flatten(),
-        *B2.flatten(),
-        *B3.flatten(),
-        *right_part_interp,
-    ]
-
-    return args
-
 
 def fill_stiffness_matrix(
     matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary, num_nodes
@@ -206,109 +172,6 @@ def fill_stiffness_matrix(
                 2 * right_part[18 + (mid_idx - 3)]
             )
 
-
-def get_delta_function(
-    origin,
-    points,
-    triangles,
-    num_nodes,
-):
-    integral_values = dill.load(
-        open("../calculations/argyris_quintic_biharmonic_matrix_integral_values", "rb")
-    )
-    near_point = ((points[:num_nodes] - origin) ** 2).sum(axis=-1).argmin()
-    base_triangles = np.where(near_point == triangles)
-    area = 0
-
-    for idx, element in enumerate(triangles[base_triangles[0]]):
-        element = orient(element)
-        trng = points[element]
-
-        # ----------------P's----------------------------------------------------------------
-        x1, x2, x3 = points[element[0], 0], points[element[1], 0], points[element[2], 0]
-        y1, y2, y3 = points[element[0], 1], points[element[1], 1], points[element[2], 1]
-
-        delta = x1 * y2 - x1 * y3 - x2 * y1 + x2 * y3 + x3 * y1 - x3 * y2
-
-        P_1_x = (-y1 + y3) / delta
-        P_1_y = (+x1 - x3) / delta
-
-        P_2_x = (+y1 - y2) / delta
-        P_2_y = (-x1 + x2) / delta
-        # ------------------------------------------------------------------------------------
-
-        # ----------------------Lengths-------------------------------------------------------
-        l1 = ((x2 - x3) ** 2 + (y2 - y3) ** 2) ** 0.5
-        l2 = ((x1 - x3) ** 2 + (y1 - y3) ** 2) ** 0.5
-        l3 = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-        # ------------------------------------------------------------------------------------
-
-        # ----------------------Jacobian------------------------------------------------------
-        J = np.array([[P_1_x, P_1_y], [P_2_x, P_2_y]])
-        J_inv_T = np.linalg.inv(J).T
-        # -----------------------------------------------------------------------------------
-
-        # -----------------------nomal-and-tangential-vectors--------------------------------
-        t1 = trng[2] - trng[1]
-        t1 = t1 / np.linalg.norm(t1)
-        n1 = rot @ t1
-
-        t2 = trng[2] - trng[0]
-        t2 = t2 / np.linalg.norm(t2)
-        n2 = rot @ t2
-
-        t3 = trng[1] - trng[0]
-        t3 = t3 / np.linalg.norm(t3)
-        n3 = rot @ t3
-        # ------------------------------------------------------------------------------------
-
-        # ------------------------G's---------------------------------------------------------
-        G1 = np.array([[*n1], [*t1]])
-        G2 = np.array([[*n2], [*t2]])
-        G3 = np.array([[*n3], [*t3]])
-
-        B1 = G1_hat @ J_inv_T @ G1.T
-        B2 = G2_hat @ J_inv_T @ G2.T
-        B3 = G3_hat @ J_inv_T @ G3.T
-        # ------------------------------------------------------------------------------------
-
-        # ----------------------Theta---------------------------------------------------------
-        THETA = np.array(
-            [
-                [P_1_x**2, 2 * P_1_x * P_2_x, P_2_x**2],
-                [P_1_y * P_1_x, P_1_y * P_2_x + P_1_x * P_2_y, P_2_x * P_2_y],
-                [P_1_y**2, 2 * P_1_y * P_2_y, P_2_y**2],
-            ]
-        )
-        # ------------------------------------------------------------------------------------
-
-        # --------------------args------------------------------------------------------------
-        args = [
-            *n1,
-            *n2,
-            *n3,
-            *t1,
-            *t2,
-            *t3,
-            l1,
-            l2,
-            l3,
-            *J.flatten(),
-            *THETA.flatten(),
-            *B1.flatten(),
-            *B2.flatten(),
-            *B3.flatten(),
-        ]
-
-        node_f_dof_idx = 6 * np.where(orient(element) == near_point)[0]
-
-        area += integral_values(*args)[node_f_dof_idx]
-
-    right_part_values = np.zeros((points.shape[0], 6))
-    right_part_values[near_point][0] = 1 / area
-
-    return right_part_values
-
 def get_delta_approximation_argyris_biharmonic(origin, 
                                                points,
                                                triangles,
@@ -335,7 +198,7 @@ def get_delta_approximation_argyris_biharmonic(origin,
 
     return right_part_values
 
-def get_delta_approximation_bell(origin, 
+def get_delta_approximation_bell_biharmonic(origin, 
                                 points,
                                 triangles,
                                 total_points):
@@ -360,3 +223,101 @@ def get_delta_approximation_bell(origin,
     right_part_values[near_point][0] = 1 / total_volume
 
     return right_part_values
+
+
+def fill_stiffness_matrix_bell_preconditioned(
+    matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary,
+    cond
+):
+    for point_idx in range(3):
+        if vertex_marker_is_boundary[element[point_idx]] == True:
+            st_index = 3
+
+            for i in range(0, st_index):
+                I = 6 * element[point_idx] + i
+                J = 6 * element[point_idx] + i
+
+                matrix[I, J] = 1
+                b[I] = 0
+
+            for i in range(st_index, 6):
+                for j in range(3):
+                    for k in range(6):
+                        I = 6 * element[point_idx] + i
+                        J = 6 * element[j] + k
+
+                        value = 2 * bilinear_form[6 * point_idx + i, 6 * j + k]
+
+                        p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                        p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
+
+                        value /= cond[element[point_idx]]**p1
+                        value /= cond[element[j]]**p2
+
+                        matrix[I, J] += value
+
+            for i in range(st_index, 6):
+                value = 2 * right_part[6 * point_idx + i]
+
+                p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                value /= cond[element[point_idx]]**p1
+
+                b[6 * element[point_idx] + i] += value
+
+        else:
+            for i in range(6):
+                for j in range(3):
+                    for k in range(6):
+                        I = 6 * element[point_idx] + i
+                        J = 6 * element[j] + k
+
+                        value = 2 * bilinear_form[6 * point_idx + i, 6 * j + k]
+
+                        p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                        p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
+
+                        value /= cond[element[point_idx]]**p1
+                        value /= cond[element[j]]**p2
+
+                        matrix[I, J] += value
+
+            for i in range(6):
+                value = 2 * right_part[6 * point_idx + i]
+
+                p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                value /= cond[element[point_idx]]**p1
+                
+                b[6 * element[point_idx] + i] += value
+
+def get_precondition_terms(points, triangles):
+
+    tmp = points[triangles]
+    v1 = tmp[:, 1] - tmp[:, 0]
+    v2 = tmp[:, 2] - tmp[:, 0]
+    v3 = tmp[:, 2] - tmp[:, 1]
+
+    # get areas
+    areas = np.abs(v1[:, 0] * v2[:, 1] - v1[:, 1] * v2[:, 0]) / 2
+    P = (v1**2).sum(axis=-1)**0.5 + \
+        (v2**2).sum(axis=-1)**0.5 + \
+        (v3**2).sum(axis=-1)**0.5
+
+    points_indices = np.arange(points.shape[0])
+
+    vertex_1 = np.where(points_indices[:, None] == triangles[:, 0])
+    vertex_2 = np.where(points_indices[:, None] == triangles[:, 1])
+    vertex_3 = np.where(points_indices[:, None] == triangles[:, 2])
+
+    map_vertex = np.concatenate([vertex_1[0], vertex_2[0], vertex_3[0]])
+    map_triangle = np.concatenate([vertex_1[1], vertex_2[1], vertex_3[1]])
+
+    cond = np.zeros(points.shape[0])
+
+    for p_index in points_indices:
+
+        w = 2 * areas[map_triangle[map_vertex == p_index]]
+        w = w / P[map_triangle[map_vertex == p_index]]
+        w = w.mean()
+        cond[p_index] = w
+
+    return cond

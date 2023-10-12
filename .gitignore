@@ -4,3 +4,4 @@
 *.toc
 *checkpoint*
 *__pycache__*
+.vscode/

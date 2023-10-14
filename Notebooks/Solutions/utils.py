@@ -336,3 +336,17 @@ def get_precondition_terms(points, triangles):
         cond[p_index] = w
 
     return cond
+
+
+def is_extreme_boundary(edges, points, edge_marker_is_boundary, point_index):
+    containing_edges, positions = np.where(edges == point_index)
+    mask = edge_marker_is_boundary[containing_edges, 0].astype(bool)
+    containing_edges = containing_edges[mask]
+
+    point_coordinates = points[edges[containing_edges]]
+    V = point_coordinates[..., 1, :] - point_coordinates[..., 0, :]
+
+    v = V[0]
+    v = v / np.linalg.norm(v)
+    is_exptreme = ~np.isclose(np.linalg.det(V), 0)
+    return is_exptreme, v

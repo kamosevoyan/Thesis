@@ -1,0 +1,14 @@
+numpy
+numba
+scipy
+sympy
+matplotlib
+symfem
+triangle
+notebook
+dill
+meshpy
+tqdm
+ipympl 
+plotly
+pandas

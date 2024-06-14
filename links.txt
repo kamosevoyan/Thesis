@@ -1,0 +1,15 @@
+https://www.ques10.com/p/23688/write-short-note-on-sub-parametric-iso-perimetric-/
+https://www.youtube.com/watch?v=d0pMazwdQxQ
+
+sub,sup,iso parametric, serendipity
+
+
+https://scicomp.stackexchange.com/questions/5072/how-to-properly-apply-non-homogeneous-dirichlet-boundary-conditions-with-fem/5073#5073
+
+https://docu.ngsolve.org/v6.2.1804/i-tutorials/unit-1.3-dirichlet/dirichlet.html
+
+https://finite-element.github.io/8_nonlinear_problems.html
+
+
+# Mesh optimization algos
+https://prepomax.discourse.group/t/useful-additional-gmsh-functionality/1343/17

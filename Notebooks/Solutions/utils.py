@@ -241,7 +241,8 @@ def get_delta_approximation_bell_biharmonic(origin, points, triangles, total_poi
 
 
 def fill_stiffness_matrix_bell_preconditioned(
-    matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary, cond
+    matrix, b, bilinear_form, right_part, element, vertex_marker_is_boundary, cond,
+    edges, points, edge_marker_is_boundary
 ):
     for point_idx in range(3):
         if vertex_marker_is_boundary[element[point_idx]] == True:
@@ -253,30 +254,62 @@ def fill_stiffness_matrix_bell_preconditioned(
 
                 matrix[I, J] = 1
                 b[I] = 0
+                
+            is_extreme, tanget = is_extreme_boundary(
+                edges, points, edge_marker_is_boundary, element[point_idx]
+            )
+            
+            if is_extreme == True:
+                for i in range(st_index, 6):
+                    I = 6 * element[point_idx] + i
+                    J = 6 * element[point_idx] + i
 
-            for i in range(st_index, 6):
-                for j in range(3):
-                    for k in range(6):
-                        I = 6 * element[point_idx] + i
-                        J = 6 * element[j] + k
+                    matrix[I, J] = 1
+                    b[I] = 0
+            else:
+                
+                rotation_matrix = np.array(
+                            [
+                                [0, 1],
+                                [-1, 0]
+                            ]
+                        )
+                normal = rotation_matrix@tanget
+                 
+                for i in [4]:
+                    for j in range(3):
+                        for k in range(6):
+                            I = 6 * element[point_idx] + i
+                            J = 6 * element[j] + k
 
-                        value = 2 * bilinear_form[6 * point_idx + i, 6 * j + k]
+                            value = 2 * bilinear_form[6 * point_idx + i, 6 * j + k]
 
-                        p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
-                        p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
+                            p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                            p2 = 0 if k == 0 else 1 if (1 <= k <= 2) else 2
 
-                        value /= cond[element[point_idx]] ** p1
-                        value /= cond[element[j]] ** p2
+                            value /= cond[element[point_idx]] ** p1
+                            value /= cond[element[j]] ** p2
 
-                        matrix[I, J] += value
+                            matrix[I, J] += value
 
-            for i in range(st_index, 6):
-                value = 2 * right_part[6 * point_idx + i]
+                for i in [4]:
+                    value = 2 * right_part[6 * point_idx + i]
 
-                p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
-                value /= cond[element[point_idx]] ** p1
+                    p1 = 0 if i == 0 else 1 if (1 <= i <= 2) else 2
+                    value /= cond[element[point_idx]] ** p1
 
-                b[6 * element[point_idx] + i] += value
+                    b[6 * element[point_idx] + i] += value
+                    
+                matrix[6*element[point_idx] + 3, 6*element[point_idx] + 3] = tanget[0]**2
+                matrix[6*element[point_idx] + 3, 6*element[point_idx] + 4] = 2*tanget[0]*tanget[1]
+                matrix[6*element[point_idx] + 3, 6*element[point_idx] + 5] = tanget[1]**2
+                
+                matrix[6*element[point_idx] + 5, 6*element[point_idx] + 3] = normal[0]*tanget[0]
+                matrix[6*element[point_idx] + 5, 6*element[point_idx] + 4] = normal[0]*tanget[1] + normal[1]*tanget[0]
+                matrix[6*element[point_idx] + 5, 6*element[point_idx] + 5] = normal[1]*tanget[1]
+                
+                b[6*element[point_idx] + 3] = 0
+                b[6*element[point_idx] + 5] = 0
 
         else:
             for i in range(6):

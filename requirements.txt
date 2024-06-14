@@ -3,12 +3,13 @@ numba
 scipy
 sympy
 matplotlib
-symfem
 triangle
 notebook
+ipykernel
 dill
-meshpy
 tqdm
 ipympl 
 plotly
 pandas
+gmsh
+pypardiso
